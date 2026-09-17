@@ -6,6 +6,8 @@ class BillRequest(BaseModel):
     kwh: float = Field(ge=0)
     peak: bool = False
     persist: bool = True
+    #: 账期锚定日，YYYY-MM-DD 或 YYYY-MM-DDTHH:MM；勾选尖峰时用于命中时段
+    anchor_date: str | None = None
 
 
 class CompareRequest(BaseModel):

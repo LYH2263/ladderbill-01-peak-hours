@@ -22,8 +22,34 @@ def init_db():
         result_json TEXT,
         created_at TEXT
     );
+    CREATE TABLE IF NOT EXISTS peak_windows(
+        id INTEGER PRIMARY KEY,
+        code TEXT UNIQUE,
+        start_time TEXT,
+        end_time TEXT,
+        cross_day INTEGER DEFAULT 0,
+        priority INTEGER DEFAULT 100,
+        enabled INTEGER DEFAULT 1,
+        note TEXT,
+        created_at TEXT,
+        updated_at TEXT
+    );
     """
     )
+    # 默认时段幂等补录：已有数据库升级时也能获得种子时段（code 唯一，重复启动不覆盖用户配置）
+    if conn.execute("SELECT COUNT(*) c FROM peak_windows").fetchone()["c"] == 0:
+        conn.executemany(
+            """
+            INSERT INTO peak_windows(code, start_time, end_time, cross_day, priority, enabled, note, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,?,datetime('now'),datetime('now'))
+            """,
+            [
+                ("EVENING_PEAK", "18:00", "22:00", 0, 10, 1, "晚高峰"),
+                ("NIGHT_PEAK", "22:00", "06:00", 1, 20, 1, "深夜尖峰（跨日）"),
+                ("MIDDAY_PEAK", "11:00", "13:00", 0, 30, 0, "午尖峰（默认停用，供演示）"),
+            ],
+        )
+        conn.commit()
     if conn.execute("SELECT COUNT(*) c FROM accounts").fetchone()["c"] == 0:
         conn.execute(
             "INSERT INTO accounts(name, meter_no, note) VALUES ('张家', 'M-1001', '对照：正常用量')"
