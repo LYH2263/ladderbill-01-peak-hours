@@ -4,7 +4,13 @@ import { getJSON } from '../api'
 const items = ref([])
 onMounted(async () => { items.value = (await getJSON('/api/history')).items })
 const summary = (row) => {
-  try { const r = JSON.parse(row.result_json); return r.total != null ? `¥${r.total}` : `平${r.plain_total}/尖${r.peak_total}` } catch { return '—' }
+  try {
+    const r = JSON.parse(row.result_json)
+    if (r.total == null) return `平${r.plain_total}/尖${r.peak_total}`
+    if (r.peak?.matched) return `¥${r.total} · 尖峰×${r.peak.factor}@${r.peak.window_code}`
+    if (r.peak?.requested) return `¥${r.total} · 尖峰未命中`
+    return `¥${r.total}`
+  } catch { return '—' }
 }
 </script>
 <template>

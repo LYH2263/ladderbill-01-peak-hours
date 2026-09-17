@@ -1,8 +1,10 @@
 import json
+from datetime import datetime
 
 from app.db import connect
 from app.engines.peak_compare import compare_plain_vs_peak
 from app.engines.tier_progressive import calc_bill
+from app.modules.peak_hours import service as peak_hours
 from app.repositories import accounts as accounts_repo
 from app.repositories import readings as readings_repo
 from app.repositories import runs as runs_repo
@@ -11,11 +13,13 @@ from app.repositories import tiers as tiers_repo
 
 
 class BillingService:
-    def __init__(self):
-        self._conn = connect()
+    def __init__(self, conn=None):
+        self._conn = conn or connect()
+        self._owns_conn = conn is None
 
     def close(self):
-        self._conn.close()
+        if self._owns_conn:
+            self._conn.close()
 
     def __enter__(self):
         return self
@@ -41,17 +45,22 @@ class BillingService:
     def settings_map(self):
         return settings_repo.get_map(self._conn)
 
-    def run_bill(self, kwh: float, peak: bool, account_id: int | None, persist: bool):
+    def run_bill(self, kwh: float, peak: bool, account_id: int | None, persist: bool, anchor_at: datetime | None = None):
         tiers = tiers_repo.as_calc_rows(self._conn)
+        anchor = anchor_at or datetime.now()
         pf = settings_repo.peak_factor(self._conn)
-        factor = pf if peak else 1.0
+        decision = peak_hours.resolve_peak(self._conn, peak, anchor, pf)
+        factor = decision["factor"]
         result = calc_bill(kwh, tiers, factor)
+        result["anchor_at"] = anchor.isoformat(timespec="minutes")
+        result["peak"] = decision
         run_id = None
         if persist:
+            # 写入运行：快照钉选当时命中时段与系数；试算（persist=False）不落库。
             run_id = runs_repo.insert(
                 self._conn,
                 "bill",
-                {"kwh": kwh, "peak": peak, "account_id": account_id},
+                {"kwh": kwh, "peak": peak, "account_id": account_id, "anchor_at": result["anchor_at"]},
                 result,
                 account_id,
             )

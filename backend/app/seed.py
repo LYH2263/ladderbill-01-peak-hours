@@ -3,6 +3,7 @@ import json
 from app.db import connect
 from app.engines.peak_compare import compare_plain_vs_peak
 from app.engines.tier_progressive import calc_bill
+from app.modules.peak_hours import repository as peak_windows_repo
 
 
 def init_db():
@@ -24,6 +25,7 @@ def init_db():
     );
     """
     )
+    peak_windows_repo.ensure_schema(conn)
     if conn.execute("SELECT COUNT(*) c FROM accounts").fetchone()["c"] == 0:
         conn.execute(
             "INSERT INTO accounts(name, meter_no, note) VALUES ('张家', 'M-1001', '对照：正常用量')"
@@ -39,6 +41,16 @@ def init_db():
         conn.execute("INSERT INTO readings(account_id, kwh, peak) VALUES (2, 400, 1)")
         conn.execute("INSERT INTO settings(key, value) VALUES ('peak_factor', '1.2')")
         conn.execute("INSERT INTO settings(key, value) VALUES ('currency', 'CNY')")
+        peak_windows_repo.insert(
+            conn,
+            {"code": "晚高峰", "start_min": 18 * 60, "end_min": 22 * 60, "cross_day": False,
+             "priority": 10, "enabled": True, "note": "晚间用电尖峰"},
+        )
+        peak_windows_repo.insert(
+            conn,
+            {"code": "夜间尖峰", "start_min": 23 * 60, "end_min": 60, "cross_day": True,
+             "priority": 5, "enabled": False, "note": "跨日示例，默认停用"},
+        )
         tiers = [{"up_to": r[0], "price": r[1]} for r in [(180, 0.52), (260, 0.62), (None, 0.82)]]
         bill1 = calc_bill(120, tiers, 1.0)
         conn.execute(

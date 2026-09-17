@@ -5,6 +5,7 @@ import AccountDetail from './pages/AccountDetail.vue'
 import Workbench from './pages/Workbench.vue'
 import TierRules from './pages/TierRules.vue'
 import PeakCompare from './pages/PeakCompare.vue'
+import PeakWindows from './pages/PeakWindows.vue'
 import RunHistory from './pages/RunHistory.vue'
 import Settings from './pages/Settings.vue'
 
@@ -17,6 +18,7 @@ export default createRouter({
     { path: '/workbench', component: Workbench },
     { path: '/tiers', component: TierRules },
     { path: '/compare', component: PeakCompare },
+    { path: '/peak-windows', component: PeakWindows },
     { path: '/history', component: RunHistory },
     { path: '/settings', component: Settings },
   ],
